@@ -3,10 +3,10 @@ name: iran-reference-probe
 on:
   schedule:
     - cron: "*/30 * * * *"
-  workflow_dispatch: {}
+  workflow_dispatch: { }
 
 permissions:
-  contents: write   # we commit the refreshed JSON back to the repo
+  contents: write
 
 concurrency:
   group: iran-reference-probe
@@ -21,9 +21,6 @@ jobs:
       - name: Checkout this repo
         uses: actions/checkout@v4
 
-      # Skip actions/setup-python on self-hosted macOS/Linux: it often tries to
-      # create /Users/runner/... paths from GitHub-hosted images and exits with
-      # "mkdir: ... Permission denied". We use whichever Python ≥3.10 is on PATH.
       - name: Resolve Python (self-hosted)
         id: py
         shell: bash
@@ -41,30 +38,32 @@ jobs:
           exit 1
 
       - name: Install ping-luma
-        # Pinned to a specific commit/tag in production. For first-run
-        # convenience this fetches the latest main; you can pin a tag
-        # with @v1.0.0 once you cut releases.
         shell: bash
         run: |
           set -euo pipefail
           PY="${{ steps.py.outputs.cmd }}"
-          "$PY" -m pip install --upgrade pip
-          "$PY" -m pip install -r requirements.txt
+
+          # Create a virtual environment inside the workspace
+          "$PY" -m venv "$GITHUB_WORKSPACE/.venv"
+
+          # Activate and upgrade pip cleanly
+          source "$GITHUB_WORKSPACE/.venv/bin/activate"
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+          # Save the venv python path for all subsequent steps
+          echo "VENV_PY=$GITHUB_WORKSPACE/.venv/bin/python" >> "$GITHUB_ENV"
 
       - name: Probe and write iran-ref.json
         shell: bash
         run: |
           set -euo pipefail
-          PY="${{ steps.py.outputs.cmd }}"
-          "$PY" -m ping_luma.publish_iran_reference \
+          "$VENV_PY" -m ping_luma.publish_iran_reference \
               --output iran-ref.json \
               --pretty
 
-      # ``git diff`` ignores *untracked* files. On the first-ever run there is
-      # no committed ``iran-ref.json`` yet — the old ``git diff --quiet
-      # iran-ref.json`` check always succeeded, skipped commit, and left the
-      # repo without the file (raw.githubusercontent.com → 404 forever).
       - name: Commit and push if changed
+        shell: bash
         run: |
           set -e
           git add iran-ref.json
