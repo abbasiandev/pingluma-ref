@@ -40,15 +40,19 @@ jobs:
               --output iran-ref.json \
               --pretty
 
+      # ``git diff`` ignores *untracked* files. On the first-ever run there is
+      # no committed ``iran-ref.json`` yet — the old ``git diff --quiet
+      # iran-ref.json`` check always succeeded, skipped commit, and left the
+      # repo without the file (raw.githubusercontent.com → 404 forever).
       - name: Commit and push if changed
         run: |
           set -e
-          if git diff --quiet iran-ref.json; then
+          git add iran-ref.json
+          if git diff --cached --quiet; then
             echo "No changes — skipping commit."
             exit 0
           fi
           git config user.email "iran-ref-bot@users.noreply.github.com"
           git config user.name  "iran-ref-bot"
-          git add iran-ref.json
           git commit -m "iran-ref: refresh $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           git push
