@@ -1,0 +1,29 @@
+{
+  "results": {
+    "bale": {
+      "call_ok": false,
+      "chat_ok": false
+    },
+    "eitaa": {
+      "call_ok": false,
+      "chat_ok": false
+    },
+    "gap": {
+      "call_ok": false,
+      "chat_ok": false
+    },
+    "igap": {
+      "call_ok": false,
+      "chat_ok": false
+    },
+    "rubika": {
+      "call_ok": null,
+      "chat_ok": false
+    },
+    "soroush": {
+      "call_ok": null,
+      "chat_ok": false
+    }
+  },
+  "ts": "2026-05-01T14:21:55Z"
+}
