@@ -21,22 +21,42 @@ jobs:
       - name: Checkout this repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      # Skip actions/setup-python on self-hosted macOS/Linux: it often tries to
+      # create /Users/runner/... paths from GitHub-hosted images and exits with
+      # "mkdir: ... Permission denied". We use whichever Python ≥3.10 is on PATH.
+      - name: Resolve Python (self-hosted)
+        id: py
+        shell: bash
+        run: |
+          set -euo pipefail
+          for cand in python3.12 python3.11 python3.10 python3; do
+            if command -v "$cand" >/dev/null 2>&1 \
+              && "$cand" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'; then
+              echo "cmd=$(command -v "$cand")" >> "$GITHUB_OUTPUT"
+              echo "Using $($cand --version)"
+              exit 0
+            fi
+          done
+          echo "::error::No Python ≥3.10 found. Install: brew install python@3.11"
+          exit 1
 
       - name: Install ping-luma
         # Pinned to a specific commit/tag in production. For first-run
         # convenience this fetches the latest main; you can pin a tag
         # with @v1.0.0 once you cut releases.
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          set -euo pipefail
+          PY="${{ steps.py.outputs.cmd }}"
+          "$PY" -m pip install --upgrade pip
+          "$PY" -m pip install -r requirements.txt
 
       - name: Probe and write iran-ref.json
+        shell: bash
         run: |
-          python -m ping_luma.publish_iran_reference \
+          set -euo pipefail
+          PY="${{ steps.py.outputs.cmd }}"
+          "$PY" -m ping_luma.publish_iran_reference \
               --output iran-ref.json \
               --pretty
 
